@@ -18,9 +18,9 @@ fi
 systemctl enable --now docker >/dev/null 2>&1 || true
 
 # 2. Settings file with a strong password
-if [ ! -f .env ]; then
-  cp .env.example .env
-  PW="$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 20)"
+[ -f .env ] || cp .env.example .env
+if grep -qE '^ADMIN_PASSWORD=(change-me)?$' .env; then
+  PW="$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom 2>/dev/null | head -c 20 || true)"
   sed -i "s/^ADMIN_PASSWORD=.*/ADMIN_PASSWORD=$PW/" .env
   NEW_PASSWORD=1
 fi
