@@ -1,0 +1,35 @@
+# Stream relay. Start with:  docker compose up -d
+# Settings live in the .env file next to this one (see .env.example).
+services:
+  relay:
+    build: .
+    image: stream-relay:latest
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "${RTMP_PORT:-1935}:1935"                    # OBS sends here
+      - "${ADMIN_BIND:-0.0.0.0}:${ADMIN_PORT:-8080}:8080"  # settings page
+    volumes:
+      - relay-data:/data
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "2" }
+
+  # Optional: a secure https:// address for the settings page.
+  # Turned on by install.sh when DOMAIN is set in .env.
+  https:
+    image: caddy:2
+    profiles: ["https"]
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    depends_on: [relay]
+
+volumes:
+  relay-data:
+  caddy-data:

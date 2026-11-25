@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block body %}
+<header>
+  <h1>Stream Relay</h1>
+  <form method="post" action="{{ url_for('logout') }}">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button class="secondary small">Sign out</button>
+  </form>
+</header>
+
+<p class="muted">Each room sends one stream here from its own OBS. The relay copies it to that room's YouTube, Facebook and any other destination you switch on. This page refreshes its status when you reload it.</p>
+
+{% for r in rooms %}
+{% set room = r.room %}
+<section class="card" id="{{ r.id }}">
+  <div class="row">
+    <h2>{{ room.name }}</h2>
+    {% if r.live %}
+      <span class="pill live"><span class="dot"></span>Live from OBS · {{ r.live.duration }} · {{ r.live.kbps }} kbps</span>
+    {% else %}
+      <span class="pill idle">Not streaming</span>
+    {% endif %}
+  </div>
+
+  <h3 style="margin-top:16px">OBS settings for this room</h3>
+  <p class="muted" style="margin:4px 0 0">In OBS: Settings › Stream › Service: <b>Custom…</b>, then paste these two.</p>
+  <label>Server</label>
+  <div class="copy"><input type="text" readonly value="{{ obs_server }}" onclick="this.select()"><button type="button" class="secondary small" onclick="cp(this)">Copy</button></div>
+  <label>Stream Key</label>
+  <div class="copy"><input type="password" readonly value="{{ room.ingest_key }}" onclick="this.select()" onfocus="this.type='text'" onblur="this.type='password'"><button type="button" class="secondary small" onclick="cp(this)">Copy</button></div>
+
+  <form method="post" action="{{ url_for('save', rid=r.id) }}">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    {% for x in r.dests %}{% set d = x.d %}
+    <div class="dest">
+      <div class="row">
+        <label class="check"><input type="checkbox" name="{{ x.slot }}_enabled" {% if d.enabled %}checked{% endif %}> Send to {{ d.label }}</label>
+        {% if x.state == 'sending' %}<span class="pill sending">Sending</span>
+        {% elif x.state == 'ready' %}<span class="pill ready">Ready</span>
+        {% elif x.state == 'incomplete' %}<span class="pill incomplete">Needs a stream key</span>
+        {% else %}<span class="pill off">Off</span>{% endif %}
+      </div>
+      {% if x.slot == 'extra' %}
+      <label>Name</label>
+      <input type="text" name="extra_label" value="{{ d.label if d.label != 'Other' else '' }}" placeholder="e.g. Vimeo, Twitch">
+      {% endif %}
+      <details {% if x.slot == 'extra' %}open{% endif %}>
+        <summary>Server address</summary>
+        <input type="text" name="{{ x.slot }}_url" value="{{ d.url }}" placeholder="rtmp://… or rtmps://…" style="margin-top:6px">
+      </details>
+      <label>{{ d.label }} stream key</label>
+      <input type="password" name="{{ x.slot }}_key" autocomplete="off"
+             placeholder="{% if d.key %}Saved (ends in …{{ d.key[-4:] }}). Paste a new one to replace it.{% else %}Paste the stream key from {{ d.label }}{% endif %}">
+      {% if d.key %}<label class="check" style="font-weight:400;margin-top:6px"><input type="checkbox" name="{{ x.slot }}_clear"> Forget this key</label>{% endif %}
+      {% if x.log %}
+      <details><summary>Recent messages</summary><pre>{{ x.log }}</pre></details>
+      {% endif %}
+    </div>
+    {% endfor %}
+    <details class="dest"><summary>Rename this room</summary>
+      <input type="text" name="name" value="{{ room.name }}" maxlength="40" style="margin-top:6px">
+    </details>
+    <div class="actions"><button type="submit">Save {{ room.name }}</button></div>
+  </form>
+
+  <details class="dest"><summary>More options</summary>
+    {% if r.live %}
+    <p class="muted">If one platform has stopped showing the stream, reconnect just that one. The others keep going.</p>
+    <div class="actions">
+    {% for x in r.dests if x.state == 'sending' %}
+      <form method="post" action="{{ url_for('reconnect', rid=r.id) }}">
+        <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="slot" value="{{ x.slot }}">
+        <button class="secondary small">Reconnect {{ x.d.label }}</button>
+      </form>
+    {% endfor %}
+    </div>
+    {% endif %}
+    <p class="muted">Make a new OBS stream key if you think the current one has been shared. You'll need to paste it into this room's OBS.</p>
+    <form method="post" action="{{ url_for('new_key', rid=r.id) }}" data-msg="Make a new OBS stream key for {{ room.name }}? The old one will stop working." onsubmit="return confirm(this.dataset.msg)">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><button class="secondary small">New OBS stream key</button>
+    </form>
+    <p class="muted" style="margin-top:16px">Remove this room: type <b>{{ room.name }}</b> below and press Remove.</p>
+    <form method="post" action="{{ url_for('delete_room', rid=r.id) }}" class="copy">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <input type="text" name="confirm" autocomplete="off" placeholder="{{ room.name }}">
+      <button class="danger small">Remove</button>
+    </form>
+  </details>
+</section>
+{% endfor %}
+
+<section class="card">
+  <h2>Add a room</h2>
+  <p class="muted">Each room gets its own OBS stream key and its own destinations.</p>
+  <form method="post" action="{{ url_for('add_room') }}" class="copy">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="text" name="name" maxlength="40" placeholder="e.g. Youth hall">
+    <button>Add</button>
+  </form>
+</section>
+
+<script>
+function cp(btn) {
+  var i = btn.previousElementSibling, t = i.type;
+  if (navigator.clipboard && window.isSecureContext) { navigator.clipboard.writeText(i.value); }
+  else { i.type = 'text'; i.select(); document.execCommand('copy'); i.type = t; } btn.textContent = 'Copied'; setTimeout(function(){ btn.textContent = 'Copy'; }, 1500);
+}
+{% if open_room %}document.getElementById({{ open_room|tojson }}) && document.getElementById({{ open_room|tojson }}).scrollIntoView();{% endif %}
+</script>
+{% endblock %}
