@@ -43,7 +43,7 @@ We'll use **DigitalOcean** because its website is the simplest. (Hetzner is a ch
 2. Copy and paste this line into it, then press **Enter**:
 
    ```
-   git clone REPO_URL stream-relay && cd stream-relay && bash install.sh
+   git clone https://github.com/rguirguis1969/Church-stream-relay.git stream-relay && cd stream-relay && bash install.sh
    ```
 
 3. It installs everything. When it asks *"do you have a web address pointed at this server?"*, just press **Enter** to skip (see "Optional: a secure web address" below if you want one).

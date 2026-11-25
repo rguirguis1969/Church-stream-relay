@@ -7,5 +7,5 @@ A small self-hosted replacement for Restream: each room's OBS sends one stream t
 Quick install on a fresh Ubuntu server, as root:
 
 ```
-git clone REPO_URL stream-relay && cd stream-relay && bash install.sh
+git clone https://github.com/rguirguis1969/Church-stream-relay.git stream-relay && cd stream-relay && bash install.sh
 ```
